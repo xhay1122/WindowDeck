@@ -1,0 +1,217 @@
+/*
+  English.
+  Keys are the Simplified Chinese source strings used in code.
+  Format specifiers must match the interpolated types: Int → %lld, String → %@.
+*/
+
+/* MARK: Menu bar */
+"WindowDeck：需要处理权限或手势冲突" = "WindowDeck: permissions or gesture conflicts need attention";
+"显示牌堆" = "Show Deck";
+"显示当前应用窗口" = "Show Current App Windows";
+"暂停手势" = "Pause Gestures";
+"⚠︎ 手势冲突：系统手势仍然开启" = "⚠︎ Gesture conflict: system gestures are still on";
+"打开触控板设置…" = "Open Trackpad Settings…";
+"手势不可用，请使用快捷键" = "Gestures unavailable, use shortcuts instead";
+"⚠︎ 授予辅助功能权限…" = "⚠︎ Grant Accessibility Permission…";
+"授予屏幕录制权限（显示缩略图）…" = "Grant Screen Recording Permission (for thumbnails)…";
+"设置…" = "Settings…";
+"权限与诊断…" = "Permissions & Diagnostics…";
+"退出 WindowDeck" = "Quit WindowDeck";
+
+/* MARK: Onboarding */
+"欢迎使用 WindowDeck" = "Welcome to WindowDeck";
+"三指上滑：按应用把窗口叠成牌堆；三指下滑：列出当前应用的窗口。" = "Swipe up with three fingers to stack windows into per-app decks; swipe down to list the current app's windows.";
+"辅助功能权限（必需）" = "Accessibility Permission (required)";
+"用于读取窗口列表、聚焦 / 关闭 / 收起窗口。在系统设置中打开 WindowDeck 的开关，授权后这里会自动变为已完成。" = "Used to read the window list and to focus, close, or minimize windows. Turn on WindowDeck in System Settings; this step completes automatically once granted.";
+"打开授权" = "Grant Access";
+"屏幕录制权限（显示缩略图）" = "Screen Recording Permission (for thumbnails)";
+"用于截取窗口缩略图。授权后需要重新启动 WindowDeck；系统可能会定期再次确认。不授权也可以使用\"仅标题\"模式。" = "Used to capture window thumbnails. WindowDeck must be relaunched after granting, and macOS may ask again periodically. You can also use \"Titles Only\" mode without it.";
+"已授权，重新启动" = "Granted, Relaunch";
+"跳过，使用仅标题模式" = "Skip, Use Titles Only";
+"关闭系统的调度中心手势" = "Turn Off the System Mission Control Gestures";
+"在\"触控板 → 更多手势\"中把\"调度中心\"和\"App Exposé\"关闭（或改为四指）。之后仍可用 ⌃↑ / ⌃↓ 打开系统自带的调度中心。" = "In \"Trackpad → More Gestures\", turn off \"Mission Control\" and \"App Exposé\" (or switch them to four fingers). You can still open the system Mission Control with ⌃↑ / ⌃↓.";
+"打开触控板设置" = "Open Trackpad Settings";
+"当前系统上无法读取触控板数据，可以在设置中配置快捷键来打开 WindowDeck。" = "Trackpad data can't be read on this system. Configure keyboard shortcuts in Settings to open WindowDeck.";
+"打开设置…" = "Open Settings…";
+"完成" = "Done";
+
+/* MARK: Overlay */
+"未响应" = "Not Responding";
+"已隐藏" = "Hidden";
+"已收起" = "Minimized";
+"全屏" = "Full Screen";
+"其他桌面" = "Other Desktop";
+"按住 ⌥ Option 再点关闭" = "Hold ⌥ Option and click to close";
+"没有可显示的窗口" = "No windows to show";
+"「%@」没有可显示的窗口" = "“%@” has no windows to show";
+"没有当前应用" = "No current app";
+"⇥ 切换应用" = "⇥ Switch App";
+"操作失败：该窗口不支持或应用未响应" = "Action failed: the window doesn't support it or the app isn't responding";
+"隐藏应用" = "Hide App";
+"退出应用" = "Quit App";
+"%lld 个窗口" = "%lld windows";
+"再点一次退出" = "Click again to quit";
+"%@ · 窗口 %ld" = "%@ · Window %ld";
+
+/* MARK: Capabilities */
+"窗口 ID（_AXUIElementGetWindow）" = "Window ID (_AXUIElementGetWindow)";
+"无法识别窗口，基本功能不可用" = "Windows can't be identified; core features are unavailable";
+"桌面（Space）信息（SkyLight）" = "Desktop (Space) info (SkyLight)";
+"只展示当前桌面的窗口" = "Only windows on the current desktop are shown";
+"其他桌面窗口操作（远程 AX 令牌）" = "Windows on other desktops (remote AX token)";
+"其他桌面的窗口只读，点击时激活应用" = "Windows on other desktops are read-only; clicking activates the app";
+"触控板手势（MultitouchSupport）" = "Trackpad gestures (MultitouchSupport)";
+"手势不可用，请改用快捷键" = "Gestures unavailable; use keyboard shortcuts instead";
+"精确聚焦（SkyLight）" = "Precise focus (SkyLight)";
+"使用 AX 置前 + 抬升窗口" = "Uses AX activation + window raise";
+
+/* MARK: Gesture conflicts */
+"系统的调度中心 / App Exposé 手势仍在使用%lld指上下滑，需要在系统设置 → 触控板 → 更多手势中关闭。" = "The system Mission Control / App Exposé gestures still use %lld-finger vertical swipes. Turn them off in System Settings → Trackpad → More Gestures.";
+"已开启\"三指拖移\"，三指滑动会被当作拖拽。建议改用四指，或关闭三指拖移。" = "\"Three-finger drag\" is on, so three-finger swipes are treated as drags. Switch to four fingers or turn off three-finger drag.";
+"没有检测到手势冲突。" = "No gesture conflicts detected.";
+
+/* MARK: Logs */
+"无法读取日志：%@" = "Unable to read logs: %@";
+
+/* MARK: Hotkey recorder */
+"清除" = "Clear";
+"已被占用" = "In Use";
+"注册失败，可能被其他应用占用，请换一个组合" = "Registration failed; another app may be using this shortcut. Try a different combination.";
+"请按下快捷键…" = "Press a shortcut…";
+"点击录制" = "Click to Record";
+
+/* MARK: Settings — tabs */
+"通用" = "General";
+"外观" = "Appearance";
+"牌堆" = "Deck";
+"当前应用" = "Current App";
+"红绿灯" = "Window Buttons";
+"过滤" = "Filters";
+"权限与诊断" = "Permissions & Diagnostics";
+"WindowDeck 设置" = "WindowDeck Settings";
+
+/* MARK: Settings — General */
+"登录时启动" = "Launch at Login";
+"语言" = "Language";
+"跟随系统" = "System";
+"重新启动后生效。" = "Takes effect after relaunching.";
+"重新启动 WindowDeck" = "Relaunch WindowDeck";
+"触控板手势" = "Trackpad Gestures";
+"当前系统上无法读取触控板数据，请使用快捷键。" = "Trackpad data can't be read on this system. Please use keyboard shortcuts.";
+"启用手势（上滑显示牌堆，下滑显示当前应用窗口）" = "Enable gestures (swipe up for the deck, swipe down for current app windows)";
+"手指数" = "Fingers";
+"三指" = "Three";
+"四指" = "Four";
+"灵敏度" = "Sensitivity";
+"低" = "Low";
+"高" = "High";
+"快捷键" = "Keyboard Shortcuts";
+"默认不设置快捷键。按同一快捷键可收起，按另一个快捷键可在两个视图间切换。" = "No shortcuts are set by default. Press the same shortcut again to dismiss, or the other one to switch views.";
+"关闭系统手势后，仍可用 ⌃↑ / ⌃↓ 或 F3 打开系统自带的调度中心。WindowDeck 不会修改系统设置。" = "After turning off the system gestures, you can still open Mission Control with ⌃↑ / ⌃↓ or F3. WindowDeck never changes system settings.";
+
+/* MARK: Settings — Appearance */
+"应用主题" = "App Theme";
+"覆盖层主题" = "Overlay Theme";
+"跟随应用" = "Match App";
+"浅色" = "Light";
+"深色" = "Dark";
+"应用主题作用于设置窗口与引导窗口；覆盖层主题作用于牌堆和当前应用界面。" = "App theme applies to the settings and onboarding windows; overlay theme applies to the deck and current-app views.";
+"窗口内容" = "Window Content";
+"显示窗口缩略图" = "Show window thumbnails";
+"关闭后为\"仅标题\"模式：只显示应用和窗口标题，不需要屏幕录制权限。" = "When off, \"Titles Only\" mode shows just app and window titles and doesn't need Screen Recording permission.";
+"画质" = "Quality";
+"省内存" = "Low Memory";
+"均衡" = "Balanced";
+"清晰" = "Sharp";
+"标题" = "Titles";
+"字号 %lld" = "Font Size %lld";
+"字重" = "Weight";
+"常规" = "Regular";
+"中等" = "Medium";
+"半粗" = "Semibold";
+"粗体" = "Bold";
+"最多 %lld 行" = "Max lines: %lld";
+"过长时截断" = "Truncate Long Titles";
+"开头" = "Head";
+"中间" = "Middle";
+"末尾" = "Tail";
+"标题背景" = "Title Background";
+"无" = "None";
+"胶囊" = "Pill";
+"整条" = "Bar";
+"标题前显示应用名" = "Show app name before title";
+"去掉标题末尾的应用名" = "Remove app name at end of title";
+"弱化同一应用窗口标题的相同部分" = "Dim the shared parts of titles within an app";
+"背景与动画" = "Background & Animation";
+"遮罩深度" = "Backdrop Strength";
+"减少动态效果" = "Reduce Motion";
+"开" = "On";
+"关" = "Off";
+"WindowDeck — 一个很长很长的窗口标题，用来查看换行与截断的效果.swift — Xcode" = "WindowDeck — AVeryVeryLongWindowTitleToPreviewWrappingAndTruncation.swift — Xcode";
+
+/* MARK: Settings — Deck / Current App / Window Buttons */
+"后层露出内容 %lld pt" = "Peek of Cards Behind: %lld pt";
+"最多堆叠 %lld 层" = "Max stack depth: %lld";
+"悬停牌堆时展开" = "Expand deck on hover";
+"显示没有窗口的应用" = "Show apps without windows";
+"同一应用的窗口叠成一摞，最近使用的在最前。每层后面的卡片露出\"标题 + 一截窗口内容\"，标题字号越大，露出的部分越高。" = "Windows of the same app are stacked with the most recently used on top. Each card behind shows its title plus a strip of content; larger title fonts reveal more.";
+"已收起的窗口放在底部条带" = "Put minimized windows in a bottom strip";
+"其他桌面的窗口单独分组" = "Group windows from other desktops separately";
+"在当前应用视图中按 ⇥ / ⇧⇥ 切换到其他应用的窗口。" = "In the current app view, press ⇥ / ⇧⇥ to switch to other apps' windows.";
+"显示时机" = "Show";
+"悬停时" = "On Hover";
+"始终" = "Always";
+"从不" = "Never";
+"关闭（红）" = "Close (red)";
+"收起（黄）" = "Minimize (yellow)";
+"全屏 / 缩放（绿）" = "Full Screen / Zoom (green)";
+"绿灯行为" = "Green Button Action";
+"缩放" = "Zoom";
+"关闭确认" = "Close Confirmation";
+"直接关闭" = "Close Immediately";
+"按住 ⌥ 才关闭" = "Require ⌥ Option";
+"再点一次确认" = "Click Twice";
+"关闭 / 收起后自动收起覆盖层" = "Dismiss overlay after closing / minimizing";
+"默认不收起，方便连续整理多个窗口。快捷键：⌘W 关闭、⌘M 收起选中的窗口。" = "Off by default so you can tidy up several windows in a row. Shortcuts: ⌘W closes and ⌘M minimizes the selected window.";
+
+/* MARK: Settings — Filters */
+"显示已收起的窗口" = "Show minimized windows";
+"显示已隐藏应用的窗口" = "Show windows of hidden apps";
+"显示其他桌面的窗口" = "Show windows on other desktops";
+"包含菜单栏工具类应用的窗口" = "Include windows of menu bar apps";
+"多显示器" = "Multiple Displays";
+"每块屏幕显示本屏窗口" = "Each display shows its own windows";
+"全部集中到鼠标所在屏幕" = "Show all on the display with the pointer";
+"排除的应用" = "Excluded Apps";
+
+/* MARK: Settings — Permissions & Diagnostics */
+"权限" = "Permissions";
+"辅助功能" = "Accessibility";
+"必需：读取与操作窗口" = "Required: read and control windows";
+"屏幕录制" = "Screen Recording";
+"显示缩略图时需要；授权后需重新启动" = "Needed for thumbnails; relaunch after granting";
+"系统能力" = "System Capabilities";
+"降级：%@" = "Fallback: %@";
+"触控设备" = "Touch Devices";
+"%lld 个" = "%lld";
+"（未启动）" = " (not started)";
+"已收到触控帧" = "Touch Frames Received";
+"当前手指数" = "Current Finger Count";
+"原始数据" = "Raw Data";
+"未设置" = "not set";
+"系统偏好" = "System Preferences";
+"垂直轻扫=%@ 调度中心=%@ App Exposé=%@ 三指拖移=%@" = "Vertical swipe=%@ Mission Control=%@ App Exposé=%@ Three-finger drag=%@";
+"手势诊断" = "Gesture Diagnostics";
+"把手指放在触控板上，\"当前手指数\"应随之变化；x / y 应在 0–1 之间变化。若不变化，说明当前系统上触控数据格式与预期不符。" = "Place fingers on the trackpad: \"Current Finger Count\" should follow, and x / y should vary between 0 and 1. If nothing changes, the touch data format on this system isn't what WindowDeck expects.";
+"配置" = "Configuration";
+"导出配置…" = "Export Settings…";
+"导入配置…" = "Import Settings…";
+"导出诊断信息…" = "Export Diagnostics…";
+"恢复默认设置" = "Restore Defaults";
+"已导出到 %@" = "Exported to %@";
+"导出失败：%@" = "Export failed: %@";
+"已导入" = "Imported";
+"导入失败：%@" = "Import failed: %@";
+"辅助功能=%@ 屏幕录制=%@" = "accessibility=%@ screenRecording=%@";
+"已授权" = "Granted";
+"去授权" = "Grant";

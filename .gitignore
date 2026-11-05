@@ -1,0 +1,19 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+.DS_Store
+
+# 签名证书 / 私钥等敏感文件，不进入版本库
+certs/
+*.cer
+*.crt
+*.der
+*.pem
+*.p12
+*.pfx
+*.key
+*.keychain
+*.keychain-db
+*.mobileprovision
+*.provisionprofile

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- WindowDeck 应用图标源文件。由 scripts/make-icon.sh 生成 Support/Resources/AppIcon.icns。
+       遵循 macOS 图标网格：1024 画布，824×824 圆角底板居中，四周留白用于投影。 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E4E8EB"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dy="10" result="blur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#bg)" filter="url(#shadow)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" ry="184.5" fill="none" stroke="#000000" stroke-opacity="0.06"/>
+  <!-- 符号：原始坐标系内容中心约 (76.3, 75.6)，放大 8 倍后居中到 (512, 512) -->
+  <g transform="translate(512 512) scale(8) translate(-76.3 -75.6)"
+     fill="none" stroke="#191D1F" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 61.5 56.2 H 91.1 L 103.0 69.6 Q 106.6 73.5 100.5 73.5 H 51.6 Q 45.6 73.5 49.0 69.6 Z"/>
+    <path d="M 49.4 84.5 H 102.8"/>
+    <path d="M 52.2 95.0 H 99.9"/>
+  </g>
+</svg>
