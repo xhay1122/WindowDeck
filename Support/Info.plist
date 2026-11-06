@@ -39,6 +39,8 @@
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>WindowDeck reads the tabs of Google Chrome so you can view and switch tabs from the current-app view.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>WindowDeck</string>
 </dict>

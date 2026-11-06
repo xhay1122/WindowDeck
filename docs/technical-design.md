@@ -804,3 +804,31 @@ WindowDeck/
 - `WindowDeck --render-preview <dir>`：用合成数据离屏渲染 Deck / Exposé / 仅标题 / 大字号 / 整条标题背景，人工检查布局。
 - `WindowDeck --self-test`：本机私有符号全部可用；触控设备 1 个；检测到系统手势冲突（`TrackpadThreeFingerVertSwipeGesture=2`）。
 - **未验证**（需要授予权限后人工测试）：真实窗口枚举与操作、缩略图截取速度、三指手势触发、其他桌面窗口解析、精确聚焦、飞入 / 展开动画的实际观感、多显示器。
+
+---
+
+## 25. Chrome 标签页（v0.3，实验性）
+
+当前应用是 Google Chrome（含 Beta / Dev / Canary）时，三指下滑的 Exposé 视图默认改为**标签页视图**，每行一个标签页（当前标签加粗并带强调色标记、右侧域名），点击切换，悬停 × / ⌘W 关闭，按 T 在"窗口 / 标签页"之间切换，按 G 切换分组方式（写入设置）：
+
+- **按域名（默认）**：`BrowserTabGrouper`（Core）按主机名的最后三段分组（`xx.xx.xx`：mail.google.com 与 translate.google.com 分开；a.b.example.com → b.example.com；去掉开头的 `www.`；非网页按 scheme，如 `chrome://`）。标签多的组在前；只有一个标签页的域名不少于 2 个时合并为"其他网站"放最后；有多个窗口时行尾注明"窗口 N"。
+- **按窗口**：每个 Chrome 窗口一组（窗口编号 · 标签数 · 无痕 / 已收起 / 其他桌面角标），点击头部切换到该窗口的当前标签页。
+
+后台标签页**不显示缩略图**：浏览器没有接口截取后台标签页（扩展的 `captureVisibleTab` 也只能截当前标签），"标签页显示时截图并缓存"的方案结果不可靠，已放弃。
+
+| 模块 | 说明 |
+|---|---|
+| `ChromeScripting`（Platform/AppleEvents） | 直接用 `NSAppleEventDescriptor` 拼装对象说明符并 `sendEvent(.waitForReply, .neverInteract, timeout 1.5s)`。不用 `NSAppleScript`（要求主线程）。四字符码取自 Chrome 的 `scripting.sdef`：`cwin` / `CrTb` / `ID  ` / `pnam` / `URL ` / `pbnd` / `mode` / `acTI` / `pmnd` / `pidx` |
+| `BrowserTabService` | 后台串行队列；先 `AEDeterminePermissionToAutomateTarget(ask: false)` 判断权限，再按属性批量读取（`get <prop> of every tab of every window`，每个属性一次往返）；每个 pid 缓存最近结果，打开视图先显示缓存再刷新；刷新失败保留旧结果 |
+| `BrowserTabMatcher`（Core） | 脚本窗口与系统窗口没有共同 id：先按位置尺寸（误差 ≤ 4pt，标题相同优先）匹配，再按唯一标题匹配。Chrome 的 AX 标题是"标签标题 - [属于“分组”群组 - ]Google Chrome"，脚本里只有标签标题，按"相等或以 `标题 + " - "` 开头"比较（本机实测）。匹配上的窗口切换后用现有的精确聚焦；匹配不上时用脚本 `set index to 1` + 激活应用 |
+| `BrowserTabsView`（Overlay） | 复用"仅标题"模式的瀑布流布局（组 = 浏览器窗口，行 = 标签页） |
+
+**切换流程**：收起覆盖层 → 按标签 id 重新定位下标（读取之后标签可能被拖动 / 关闭）→ `set active tab index` → 聚焦对应系统窗口。
+
+**权限**：Hardened Runtime 下需要 `com.apple.security.automation.apple-events` entitlement 与 `NSAppleEventsUsageDescription`。首次显示"授权"按钮，点击后收起覆盖层再发起系统授权（避免授权框被覆盖层挡住）；被拒绝时按钮改为打开 系统设置 → 隐私与安全性 → 自动化。覆盖层显示期间的 Apple Event 一律 `neverInteract`，不会意外弹窗。
+
+**设置**：当前应用 → 浏览器标签页（页面最上方）：`expose.showBrowserTabs`（"启用 Chrome 标签页"，默认开）、`expose.tabGrouping`（按域名 / 按窗口，默认按域名）、`expose.includeIncognitoTabs`（默认关）。
+
+**实测（本机 Chrome，1 窗口 33 标签）**：完整读取约 150ms（9 次往返，每次约 17ms）；切换（重新定位 + 设置）约 32ms。
+
+**限制 / 后续**：后台标签页没有缩略图，也没有 favicon（可考虑读取 Chrome 本地的 Favicons 数据库）；读取耗时随属性数线性增长，可考虑在 Chrome 激活时预取；Edge / Brave 等 Chromium 浏览器字典基本一致但未验证；标签数很多时可加输入过滤。

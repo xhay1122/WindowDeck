@@ -126,9 +126,19 @@ public struct DeckSettings: Codable, Sendable, Equatable {
     }
 }
 
+/// 浏览器标签页视图的分组方式。
+public enum BrowserTabGrouping: String, Codable, Sendable, CaseIterable {
+    case domain, window
+}
+
 public struct ExposeSettings: Codable, Sendable, Equatable {
     public var showMinimizedStrip: Bool = true
     public var groupOtherSpaces: Bool = false
+    /// 当前应用是受支持的浏览器（Chrome）时，默认显示标签页而不是窗口（通过 Apple Events 读取，需要"自动化"权限）。
+    public var showBrowserTabs: Bool = true
+    /// 标签页视图中包含无痕窗口。
+    public var includeIncognitoTabs: Bool = false
+    public var tabGrouping: BrowserTabGrouping = .domain
 
     public init() {}
 
@@ -137,6 +147,9 @@ public struct ExposeSettings: Codable, Sendable, Equatable {
         let d = ExposeSettings()
         showMinimizedStrip = c.value(.showMinimizedStrip, default: d.showMinimizedStrip)
         groupOtherSpaces = c.value(.groupOtherSpaces, default: d.groupOtherSpaces)
+        showBrowserTabs = c.value(.showBrowserTabs, default: d.showBrowserTabs)
+        includeIncognitoTabs = c.value(.includeIncognitoTabs, default: d.includeIncognitoTabs)
+        tabGrouping = c.value(.tabGrouping, default: d.tabGrouping)
     }
 }
 

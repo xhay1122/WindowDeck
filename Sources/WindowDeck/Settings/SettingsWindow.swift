@@ -353,6 +353,22 @@ private struct ExposeSettingsView: View {
     var body: some View {
         Form {
             Section {
+                Toggle("启用 Chrome 标签页", isOn: $store.settings.expose.showBrowserTabs)
+                Picker("分组方式", selection: $store.settings.expose.tabGrouping) {
+                    Text("按域名").tag(BrowserTabGrouping.domain)
+                    Text("按窗口").tag(BrowserTabGrouping.window)
+                }
+                .pickerStyle(.segmented)
+                .disabled(!store.settings.expose.showBrowserTabs)
+                Toggle("包含无痕窗口", isOn: $store.settings.expose.includeIncognitoTabs)
+                    .disabled(!store.settings.expose.showBrowserTabs)
+            } header: {
+                Text("浏览器标签页")
+            } footer: {
+                Text("开启后，当前应用是 Chrome 时三指下滑显示全部标签页。通过 Apple Events 读取，首次使用时需要在系统弹窗中允许 WindowDeck 控制 Chrome（系统设置 → 隐私与安全性 → 自动化）。在当前应用视图中按 T 在窗口与标签页之间切换，G 切换分组方式，⌘W 关闭选中的标签页。")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Toggle("已收起的窗口放在底部条带", isOn: $store.settings.expose.showMinimizedStrip)
                 Toggle("其他桌面的窗口单独分组", isOn: $store.settings.expose.groupOtherSpaces)
             } footer: {

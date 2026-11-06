@@ -215,3 +215,31 @@
 "辅助功能=%@ 屏幕录制=%@" = "accessibility=%@ screenRecording=%@";
 "已授权" = "Granted";
 "去授权" = "Grant";
+
+/* MARK: Browser tabs */
+"T 显示窗口" = "T Show Windows";
+"T 显示标签页" = "T Show Tabs";
+"正在读取标签页…" = "Reading tabs…";
+"显示标签页需要允许 WindowDeck 控制「%@」（系统设置 → 隐私与安全性 → 自动化）" = "To show tabs, allow WindowDeck to control “%@” (System Settings → Privacy & Security → Automation)";
+"授权" = "Allow";
+"WindowDeck 没有控制「%@」的权限，请在 系统设置 → 隐私与安全性 → 自动化 中打开" = "WindowDeck isn’t allowed to control “%@”. Turn it on in System Settings → Privacy & Security → Automation";
+"打开系统设置" = "Open System Settings";
+"无法读取标签页：「%@」没有响应" = "Unable to read tabs: “%@” is not responding";
+"重试" = "Retry";
+"无痕" = "Incognito";
+"%lld 个窗口 · %lld 个标签页" = "%lld windows · %lld tabs";
+"%lld 个标签页" = "%lld tabs";
+"没有可显示的标签页" = "No tabs to show";
+"窗口 %lld" = "Window %lld";
+"关闭标签页" = "Close Tab";
+"关闭标签页失败：浏览器未响应" = "Couldn’t close the tab: the browser is not responding";
+"浏览器标签页" = "Browser Tabs";
+"启用 Chrome 标签页" = "Enable Chrome Tabs";
+"分组方式" = "Group By";
+"按域名" = "Domain";
+"按窗口" = "Window";
+"G 按窗口分组" = "G Group by Window";
+"G 按域名分组" = "G Group by Domain";
+"其他网站" = "Other Sites";
+"包含无痕窗口" = "Include incognito windows";
+"开启后，当前应用是 Chrome 时三指下滑显示全部标签页。通过 Apple Events 读取，首次使用时需要在系统弹窗中允许 WindowDeck 控制 Chrome（系统设置 → 隐私与安全性 → 自动化）。在当前应用视图中按 T 在窗口与标签页之间切换，G 切换分组方式，⌘W 关闭选中的标签页。" = "When on, swiping down with three fingers while Chrome is the current app shows all of its tabs. Tabs are read via Apple Events; the first time, allow WindowDeck to control Chrome in the system prompt (System Settings → Privacy & Security → Automation). In the current-app view, press T to switch between windows and tabs, G to change grouping, and ⌘W to close the selected tab.";

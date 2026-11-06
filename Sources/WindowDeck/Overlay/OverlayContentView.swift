@@ -18,6 +18,14 @@ protocol OverlayContentDelegate: AnyObject {
     func overlayActivateApp(_ pid: pid_t)
     func overlayDismiss()
     func overlaySwitchExposeApp(forward: Bool)
+    func overlayActivateTab(_ tab: BrowserTab, in window: BrowserWindowTabs, from content: OverlayContentView)
+    func overlayCloseTab(_ tab: BrowserTab, in window: BrowserWindowTabs, from content: OverlayContentView)
+    /// 浏览器：在"窗口 / 标签页"之间切换。
+    func overlayToggleBrowserTabs()
+    /// 标签页视图：在"按域名 / 按窗口"分组之间切换（写入设置）。
+    func overlayToggleBrowserTabGrouping()
+    /// 标签页视图提示中的按钮（授权 / 打开系统设置 / 重试）。
+    func overlayBrowserTabsMessageAction()
 }
 
 /// 一块屏幕上覆盖层需要展示的内容。
@@ -31,6 +39,12 @@ struct OverlayContext {
     var exposePID: pid_t?
     /// Deck 中显示没有窗口的应用（只在一块屏幕上显示）。
     var includeAppsWithoutWindows: Bool
+    /// Exposé 的目标应用是受支持的浏览器，可以切换到标签页视图。
+    var browserTabsAvailable = false
+    /// Exposé 显示标签页而不是窗口。
+    var showsBrowserTabs = false
+    /// 标签页数据；只在一块屏幕上显示，其他屏幕为 nil（空白）。
+    var browserTabs: BrowserTabsState?
 }
 
 /// 没有窗口的应用：一个图标牌，点击激活应用。
@@ -165,6 +179,7 @@ final class OverlayContentView: NSView {
         var contentHeight: CGFloat = 0
         var decks: [pid_t: DeckFrame] = [:]
         var deckWindows: [pid_t: [CGWindowID]] = [:]
+        var tabs: BrowserTabsView.Content?
     }
 
     weak var delegate: OverlayContentDelegate?
@@ -176,6 +191,7 @@ final class OverlayContentView: NSView {
     private let dimView = NSView()
     private let scrollView = NSScrollView()
     private let canvas = OverlayCanvasView()
+    private let tabsView = BrowserTabsView()
 
     private var model = Model()
     private var cards: [CGWindowID: CardView] = [:]
@@ -223,6 +239,17 @@ final class OverlayContentView: NSView {
         canvas.onMouseMoved = { [weak self] point in self?.updateHover(at: point) }
         canvas.onMouseExited = { [weak self] in self?.updateHover(at: nil) }
         canvas.onBackgroundClick = { [weak self] in self?.delegate?.overlayDismiss() }
+
+        tabsView.onActivate = { [weak self] tab, window in
+            guard let self else { return }
+            self.delegate?.overlayActivateTab(tab, in: window, from: self)
+        }
+        tabsView.onClose = { [weak self] tab, window in
+            guard let self else { return }
+            self.delegate?.overlayCloseTab(tab, in: window, from: self)
+        }
+        tabsView.onMessageAction = { [weak self] in self?.delegate?.overlayBrowserTabsMessageAction() }
+        tabsView.onBackgroundClick = { [weak self] in self?.delegate?.overlayDismiss() }
     }
 
     @available(*, unavailable)
@@ -328,6 +355,7 @@ final class OverlayContentView: NSView {
         applyCards(animation: animation)
         applyHeaders(animation: animation)
         applyLabels()
+        applyTabs(animation: animation)
         reorderSubviews()
 
         if let pid = expandedPID {
@@ -362,6 +390,11 @@ final class OverlayContentView: NSView {
             height: max(self.bounds.height - insets.top - insets.bottom, 100)
         )
         var model: Model
+        if context.mode == .expose, context.showsBrowserTabs {
+            model = buildBrowserTabs(bounds: bounds)
+            model.contentHeight = max(model.contentHeight + insets.top + insets.bottom, self.bounds.height)
+            return model
+        }
         switch (context.mode, settings.showThumbnails) {
         case (.deck, true): model = buildDeck(bounds: bounds)
         case (.deck, false): model = buildTitleList(bounds: bounds, apps: deckApps())
@@ -455,10 +488,94 @@ final class OverlayContentView: NSView {
         return model
     }
 
-    private func exposeTitleLabel(app: AppInfo, bounds: CGRect) -> LabelSpec {
+    private func exposeTitleLabel(app: AppInfo, bounds: CGRect, summary: String? = nil) -> LabelSpec {
         let others = context.snapshot.apps.filter { !$0.windowIDs.isEmpty && $0.pid != app.pid }.count
-        let hint = others > 0 ? "    " + String(localized: "⇥ 切换应用") : ""
-        return LabelSpec(text: app.name + hint, frame: CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: 30), size: 17, alpha: 0.85, background: false)
+        var text = app.name
+        if let summary { text += "  ·  " + summary }
+        if context.browserTabsAvailable {
+            text += "    " + (context.showsBrowserTabs ? String(localized: "T 显示窗口") : String(localized: "T 显示标签页"))
+            if context.showsBrowserTabs {
+                text += "    " + (settings.expose.tabGrouping == .domain ? String(localized: "G 按窗口分组") : String(localized: "G 按域名分组"))
+            }
+        }
+        if others > 0 { text += "    " + String(localized: "⇥ 切换应用") }
+        return LabelSpec(text: text, frame: CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: 30), size: 17, alpha: 0.85, background: false)
+    }
+
+    /// 浏览器标签页视图：每个浏览器窗口一个分组。
+    private func buildBrowserTabs(bounds: CGRect) -> Model {
+        var model = Model()
+        model.contentHeight = bounds.height
+        // 其他屏幕不显示标签页（只在一块屏幕上显示）。
+        guard let app = exposeApp, let state = context.browserTabs else { return model }
+        var content = BrowserTabsView.Content(style: settings.titleStyle)
+        let listBounds = CGRect(x: bounds.minX, y: bounds.minY + 48, width: bounds.width, height: bounds.height - 48)
+        func message(_ text: String, button: String? = nil) {
+            content.message = BrowserTabsView.Message(text: text, buttonTitle: button, frame: CGRect(x: bounds.minX, y: bounds.midY - 40, width: bounds.width, height: 80))
+        }
+        switch state {
+        case .loading:
+            model.labels.append(exposeTitleLabel(app: app, bounds: bounds))
+            message(String(localized: "正在读取标签页…"))
+        case .needsPermission:
+            model.labels.append(exposeTitleLabel(app: app, bounds: bounds))
+            message(String(localized: "显示标签页需要允许 WindowDeck 控制「\(app.name)」（系统设置 → 隐私与安全性 → 自动化）"), button: String(localized: "授权"))
+        case .denied:
+            model.labels.append(exposeTitleLabel(app: app, bounds: bounds))
+            message(String(localized: "WindowDeck 没有控制「\(app.name)」的权限，请在 系统设置 → 隐私与安全性 → 自动化 中打开"), button: String(localized: "打开系统设置"))
+        case .failed:
+            model.labels.append(exposeTitleLabel(app: app, bounds: bounds))
+            message(String(localized: "无法读取标签页：「\(app.name)」没有响应"), button: String(localized: "重试"))
+        case let .loaded(snapshot):
+            let windows = snapshot.windows.filter { !$0.tabs.isEmpty }
+            let tabCount = windows.reduce(0) { $0 + $1.tabs.count }
+            let summary = windows.count > 1
+                ? String(localized: "\(windows.count) 个窗口 · \(tabCount) 个标签页")
+                : String(localized: "\(tabCount) 个标签页")
+            model.labels.append(exposeTitleLabel(app: app, bounds: bounds, summary: tabCount > 0 ? summary : nil))
+            if windows.isEmpty {
+                message(String(localized: "没有可显示的标签页"))
+            } else {
+                let groups = settings.expose.tabGrouping == .domain ? domainTabGroups(windows) : windowTabGroups(windows)
+                let layout = BrowserTabsView.layout(groups: groups, bounds: listBounds, style: settings.titleStyle)
+                content.groups = layout.groups
+                model.contentHeight = layout.contentHeight + 48
+            }
+        }
+        model.tabs = content
+        return model
+    }
+
+    /// 按窗口分组：每个浏览器窗口一组，头部点击切换到该窗口的当前标签页。
+    private func windowTabGroups(_ windows: [BrowserWindowTabs]) -> [BrowserTabsView.GroupInput] {
+        windows.enumerated().map { index, window in
+            var badges: [String] = []
+            if window.isIncognito { badges.append(String(localized: "无痕")) }
+            let system = window.windowID.flatMap { context.snapshot.windows[$0] }
+            if window.isMinimized || system?.isMinimized == true { badges.append(String(localized: "已收起")) }
+            if system.map({ !$0.isOnCurrentSpace }) ?? false { badges.append(String(localized: "其他桌面")) }
+            let rows = window.tabs.enumerated().map { t, tab in
+                BrowserTabsView.RowInput(tab: tab, window: window, isActive: t == window.activeTabIndex, detail: tab.displayHost)
+            }
+            let target = (window.activeTab ?? window.tabs.first).map { (tab: $0, window: window) }
+            return BrowserTabsView.GroupInput(id: "window:\(window.id)", symbol: "macwindow", title: String(localized: "窗口 \(index + 1)"), badges: badges, headerTarget: target, rows: rows)
+        }
+    }
+
+    /// 按域名分组：只有一个标签页的域名合并到"其他网站"；有多个窗口时在行尾注明所在窗口。
+    private func domainTabGroups(_ windows: [BrowserWindowTabs]) -> [BrowserTabsView.GroupInput] {
+        let multipleWindows = windows.count > 1
+        return BrowserTabGrouper.groupByDomain(windows).map { group in
+            let rows = group.positions.map { position -> BrowserTabsView.RowInput in
+                let window = windows[position.window]
+                let tab = window.tabs[position.tab]
+                var detail = tab.displayHost
+                if multipleWindows { detail += " · " + String(localized: "窗口 \(position.window + 1)") }
+                return BrowserTabsView.RowInput(tab: tab, window: window, isActive: position.tab == window.activeTabIndex, detail: detail)
+            }
+            let title = group.domain ?? String(localized: "其他网站")
+            return BrowserTabsView.GroupInput(id: "domain:\(title)", symbol: group.domain == nil ? "ellipsis.circle" : "globe", title: title, badges: [], headerTarget: nil, rows: rows)
+        }
     }
 
     private func buildExpose(bounds: CGRect) -> Model {
@@ -698,6 +815,25 @@ final class OverlayContentView: NSView {
         }
     }
 
+    private func applyTabs(animation: Animation) {
+        guard let content = model.tabs else {
+            tabsView.removeFromSuperview()
+            return
+        }
+        let isNew = tabsView.superview == nil
+        tabsView.frame = canvas.bounds
+        tabsView.apply(content)
+        if isNew {
+            canvas.addSubview(tabsView)
+            if animation != .none {
+                tabsView.alphaValue = 0
+                animate(.transition) { self.tabsView.animator().alphaValue = 1 }
+            } else {
+                tabsView.alphaValue = 1
+            }
+        }
+    }
+
     private func applyLabels() {
         labelViews.forEach { $0.removeFromSuperview() }
         overflowViews.forEach { $0.removeFromSuperview() }
@@ -722,6 +858,7 @@ final class OverlayContentView: NSView {
         ordered += model.panels.compactMap { panelViews[$0.pid] }
         ordered += model.tiles.compactMap { tileViews[$0.pid] }
         ordered += model.cards.compactMap { cards[$0.window.id] }
+        if model.tabs != nil { ordered.append(tabsView) }
         ordered += model.headers.compactMap { headers[$0.app.pid] }
         ordered += labelViews
         ordered += overflowViews
@@ -924,6 +1061,16 @@ final class OverlayContentView: NSView {
 
     override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if context.mode == .expose, context.browserTabsAvailable,
+           Int(event.keyCode) == kVK_ANSI_T, flags.isDisjoint(with: [.command, .control, .option]) {
+            delegate?.overlayToggleBrowserTabs()
+            return
+        }
+        if model.tabs != nil, Int(event.keyCode) == kVK_ANSI_G, flags.isDisjoint(with: [.command, .control, .option]) {
+            delegate?.overlayToggleBrowserTabGrouping()
+            return
+        }
+        if model.tabs != nil, handleTabsKey(event, flags: flags) { return }
         switch Int(event.keyCode) {
         case kVK_Escape:
             delegate?.overlayDismiss()
@@ -950,6 +1097,22 @@ final class OverlayContentView: NSView {
         default:
             super.keyDown(with: event)
         }
+    }
+
+    /// 标签页视图的键盘操作；返回 false 时交给通用处理（Esc、⇥ 等）。
+    private func handleTabsKey(_ event: NSEvent, flags: NSEvent.ModifierFlags) -> Bool {
+        switch Int(event.keyCode) {
+        case kVK_Return, kVK_ANSI_KeypadEnter, kVK_Space:
+            // 没有标签行时（授权 / 出错提示）Return 等同于点提示里的按钮。
+            if tabsView.hasContent { tabsView.activateSelection() } else { delegate?.overlayBrowserTabsMessageAction() }
+        case kVK_LeftArrow: tabsView.navigate(.left)
+        case kVK_RightArrow: tabsView.navigate(.right)
+        case kVK_UpArrow: tabsView.navigate(.up)
+        case kVK_DownArrow: tabsView.navigate(.down)
+        case kVK_ANSI_W where flags.contains(.command): tabsView.closeSelection()
+        default: return false
+        }
+        return true
     }
 
     override func cancelOperation(_ sender: Any?) {

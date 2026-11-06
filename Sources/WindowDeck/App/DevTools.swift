@@ -4,11 +4,18 @@ import WindowDeckCore
 /// 开发用命令行入口：
 ///   --self-test               打印能力 / 权限 / 窗口目录统计（只输出应用名与数量，不输出窗口标题）后退出
 ///   --render-preview <dir>    用合成数据离屏渲染覆盖层到 PNG（深色 + 浅色，浅色文件带 -light 后缀），便于检查布局（不需要任何权限）
+///   --browser-tabs [--ask] [--verify-switch]
+///                             通过 Apple Events 读取 Chrome 的窗口 / 标签页数量与耗时（不输出标题和 URL）；--ask 时在未授权时请求"自动化"权限；
+///                             --verify-switch 时把最前窗口的当前标签页再激活一次（不改变浏览器状态），验证切换链路
 @MainActor
 enum DevTools {
     static func handle(arguments: [String]) -> Bool {
         if arguments.contains("--self-test") {
             runSelfTest()
+            return true
+        }
+        if arguments.contains("--browser-tabs") {
+            runBrowserTabsProbe(ask: arguments.contains("--ask"), verifySwitch: arguments.contains("--verify-switch"))
             return true
         }
         if let index = arguments.firstIndex(of: "--render-preview") {
@@ -78,6 +85,62 @@ enum DevTools {
         NSApplication.shared.run()
     }
 
+    // MARK: 浏览器标签页
+
+    private static func runBrowserTabsProbe(ask: Bool, verifySwitch: Bool) {
+        let apps = NSWorkspace.shared.runningApplications.filter { BrowserTabService.supports(bundleID: $0.bundleIdentifier) }
+        guard !apps.isEmpty else {
+            print("no supported browser running")
+            return
+        }
+        for app in apps {
+            let pid = app.processIdentifier
+            print("== \(app.bundleIdentifier ?? "?") pid=\(pid)")
+            let permission = ChromeScripting.determinePermission(pid: pid, askUserIfNeeded: ask)
+            print("  permission: \(permission)")
+            guard case .success = permission else { continue }
+            let t0 = Date()
+            let result = ChromeScripting.fetchWindows(pid: pid)
+            let ms = Date().timeIntervalSince(t0) * 1000
+            switch result {
+            case let .success(windows):
+                print("  fetched \(windows.count) windows, \(windows.reduce(0) { $0 + $1.tabs.count }) tabs in \(String(format: "%.1f", ms))ms")
+                for (i, w) in windows.enumerated() {
+                    let b = w.bounds.map { "\(Int($0.minX)),\(Int($0.minY)) \(Int($0.width))x\(Int($0.height))" } ?? "nil"
+                    print("  window \(i): id=\(w.id) tabs=\(w.tabs.count) active=\(w.activeTabIndex.map(String.init) ?? "nil") incognito=\(w.isIncognito) minimized=\(w.isMinimized) bounds=\(b) firstTabID=\(w.tabs.first.map { "\($0.id)" } ?? "nil") hosts=\(Set(w.tabs.map(\.displayHost)).count)")
+                }
+            case let .failure(error):
+                print("  fetch failed: \(error) after \(String(format: "%.1f", ms))ms")
+            }
+            if case let .success(windows) = result {
+                // AX 标题 / 位置与脚本窗口是否一致（只输出比较结果，不输出标题）。
+                let element = AXUIElementCreateApplication(pid)
+                var value: AnyObject?
+                AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &value)
+                let axWindows = (value as? [AXUIElement]) ?? []
+                for (i, ax) in axWindows.enumerated() {
+                    var title: AnyObject?
+                    AXUIElementCopyAttributeValue(ax, kAXTitleAttribute as CFString, &title)
+                    let t = title as? String ?? ""
+                    let frame = AX.frame(ax)
+                    let sameTitle = windows.firstIndex { $0.title == t }
+                    let sameActiveTab = windows.firstIndex { $0.activeTab?.title == t }
+                    let sameBounds = windows.firstIndex { w in w.bounds.map { b in frame.map { abs($0.minX - b.minX) + abs($0.minY - b.minY) + abs($0.width - b.width) + abs($0.height - b.height) < 4 } ?? false } ?? false }
+                    print("  ax window \(i): titleEqualsWindowName=\(sameTitle.map(String.init) ?? "no") titleEqualsActiveTab=\(sameActiveTab.map(String.init) ?? "no") boundsMatch=\(sameBounds.map(String.init) ?? "no") titleMatchesActiveTab=\(windows.firstIndex { w in w.activeTab.map { BrowserTabMatcher.titleMatches(system: t, browser: $0.title) } ?? false }.map(String.init) ?? "no")")
+                }
+            }
+            let t1 = Date()
+            if case let .success(again) = ChromeScripting.fetchWindows(pid: pid) {
+                print("  second fetch: \(again.reduce(0) { $0 + $1.tabs.count }) tabs in \(String(format: "%.1f", Date().timeIntervalSince(t1) * 1000))ms")
+                if verifySwitch, let window = again.first, let tab = window.activeTab {
+                    let t2 = Date()
+                    let switched = ChromeScripting.activateTab(tab.id, inWindow: window.id, pid: pid, raiseWindow: false)
+                    print("  re-activate current tab: \(switched) in \(String(format: "%.1f", Date().timeIntervalSince(t2) * 1000))ms")
+                }
+            }
+        }
+    }
+
     // MARK: 离屏预览
 
     private static func renderPreviews(to dir: URL) {
@@ -93,7 +156,7 @@ enum DevTools {
 
         var settings = AppSettings()
         var dark = true
-        func render(_ name: String, mode: OverlayMode, tweak: (inout AppSettings) -> Void = { _ in }) {
+        func render(_ name: String, mode: OverlayMode, tabs: BrowserTabsState? = nil, tweak: (inout AppSettings) -> Void = { _ in }) {
             var s = settings
             tweak(&s)
             let context = OverlayContext(
@@ -102,7 +165,10 @@ enum DevTools {
                 settings: s,
                 windowIDs: Set(snapshot.windows.keys),
                 exposePID: snapshot.apps.first?.pid,
-                includeAppsWithoutWindows: true
+                includeAppsWithoutWindows: true,
+                browserTabsAvailable: tabs != nil,
+                showsBrowserTabs: tabs != nil,
+                browserTabs: tabs
             )
             let content = OverlayContentView(screen: screen, context: context, thumbnails: thumbnails)
             let window = NSWindow(contentRect: NSRect(origin: .zero, size: screen.frame.size), styleMask: .borderless, backing: .buffered, defer: false)
@@ -125,6 +191,9 @@ enum DevTools {
             render("expose", mode: .expose) { $0.trafficLights.visibility = .always }
             render("deck-title-only", mode: .deck) { $0.showThumbnails = false; $0.titleStyle.fontSize = 18 }
             render("expose-title-only", mode: .expose) { $0.showThumbnails = false; $0.titleStyle.fontSize = 22 }
+            render("expose-tabs", mode: .expose, tabs: .loaded(syntheticTabs(pid: snapshot.apps.first?.pid ?? 0)))
+            render("expose-tabs-by-window", mode: .expose, tabs: .loaded(syntheticTabs(pid: snapshot.apps.first?.pid ?? 0))) { $0.expose.tabGrouping = .window }
+            render("expose-tabs-permission", mode: .expose, tabs: .needsPermission)
             settings.titleStyle.background = .bar
             render("deck-bar", mode: .deck)
         }
@@ -197,6 +266,37 @@ enum DevTools {
             }
         }
         return (CatalogSnapshot(apps: apps, windows: windows, frontmostPID: apps.first?.pid), images)
+    }
+
+    private static func syntheticTabs(pid: pid_t) -> BrowserTabsSnapshot {
+        let specs: [[(String, String)]] = [
+            [
+                ("GitHub - Pull request #42 - project/repo", "https://github.com/project/repo/pull/42"),
+                ("Issue 17: 窗口标题太长时如何截断 · project/repo", "https://github.com/project/repo/issues/17"),
+                ("Swift Concurrency 文档 | Apple Developer Documentation", "https://developer.apple.com/documentation/swift/concurrency"),
+                ("Inbox (128) - me@example.com - Mail", "https://mail.google.com/mail/u/0/#inbox"),
+                ("设置", "chrome://settings/"),
+                ("新标签页", "chrome://newtab/"),
+                ("Stack Overflow - How to send Apple Events from a background thread", "https://stackoverflow.com/questions/1"),
+            ],
+            [
+                ("产品周会纪要（2026-11-05） - 飞书云文档", "https://example.feishu.cn/docx/abc"),
+                ("WindowDeck 交互稿 – Figma", "https://www.figma.com/file/xyz"),
+                ("YouTube", "https://www.youtube.com/"),
+            ],
+            [
+                ("Google 翻译", "https://translate.google.com/"),
+            ],
+        ]
+        var nextID = 1000
+        let windows = specs.enumerated().map { index, tabs -> BrowserWindowTabs in
+            let list = tabs.map { title, url -> BrowserTab in
+                nextID += 1
+                return BrowserTab(id: .integer(nextID), title: title, url: url)
+            }
+            return BrowserWindowTabs(id: .integer(index + 1), title: list.first?.title ?? "", bounds: nil, isMinimized: index == 2, activeTabIndex: index == 0 ? 2 : 0, tabs: list)
+        }
+        return BrowserTabsSnapshot(pid: pid, windows: windows)
     }
 
     private static func fakeWindowImage(size: CGSize, color: NSColor, title: String) -> CGImage? {

@@ -45,15 +45,26 @@ final class OverlayController: OverlayContentDelegate {
     private var panels: [(panel: OverlayPanel, content: OverlayContentView)] = []
     private var mode: OverlayMode = .deck
     private var exposePID: pid_t?
+    /// Exposé 目标是浏览器时显示标签页（每次打开时重置为设置中的默认值，按 T 切换）。
+    private var showsBrowserTabs = true
 
     private let catalog: WindowCatalog
     private let thumbnails: ThumbnailService
     private let settingsStore: SettingsStore
+    private let browserTabs = BrowserTabService()
 
     init(catalog: WindowCatalog, thumbnails: ThumbnailService, settingsStore: SettingsStore) {
         self.catalog = catalog
         self.thumbnails = thumbnails
         self.settingsStore = settingsStore
+        browserTabs.onChange = { [weak self] pid in
+            guard let self, self.exposePID == pid, self.isShowingBrowserTabs else { return }
+            // 收起动画期间（例如切换标签页后的刷新）不再重建内容。
+            switch self.state {
+            case .visible, .presenting: self.refreshContents()
+            default: break
+            }
+        }
     }
 
     private var settings: AppSettings { settingsStore.settings }
@@ -96,6 +107,8 @@ final class OverlayController: OverlayContentDelegate {
         if front == nil || front == selfPID { front = catalog.mostRecentAppPID }
         exposePID = front
         self.mode = mode
+        showsBrowserTabs = settings.expose.showBrowserTabs
+        refreshBrowserTabsIfNeeded()
 
         let snapshot = catalog.snapshot()
         let contexts = makeContexts(mode: mode, snapshot: snapshot)
@@ -135,6 +148,37 @@ final class OverlayController: OverlayContentDelegate {
         }
     }
 
+    // MARK: 浏览器标签页
+
+    /// Exposé 的目标应用是受支持的浏览器（且设置中开启了标签页视图）。
+    private var exposeBrowserPID: pid_t? {
+        guard settings.expose.showBrowserTabs, let pid = exposePID,
+              BrowserTabService.supports(bundleID: NSRunningApplication(processIdentifier: pid)?.bundleIdentifier) else { return nil }
+        return pid
+    }
+
+    private var isShowingBrowserTabs: Bool {
+        mode == .expose && showsBrowserTabs && exposeBrowserPID != nil
+    }
+
+    private func refreshBrowserTabsIfNeeded() {
+        guard isShowingBrowserTabs, let pid = exposeBrowserPID else { return }
+        browserTabs.refresh(pid: pid)
+    }
+
+    /// 当前标签页数据：匹配系统窗口，并按设置过滤无痕窗口。
+    private func browserTabsState(snapshot: CatalogSnapshot) -> BrowserTabsState? {
+        guard isShowingBrowserTabs, let pid = exposeBrowserPID else { return nil }
+        let state = browserTabs.state(for: pid)
+        guard case var .loaded(tabs) = state else { return state }
+        if !settings.expose.includeIncognitoTabs {
+            tabs.windows.removeAll(where: \.isIncognito)
+        }
+        let windows = snapshot.app(pid: pid).map { snapshot.windows(of: $0) } ?? []
+        tabs.windows = BrowserTabMatcher.match(tabs.windows, to: windows)
+        return .loaded(tabs)
+    }
+
     /// 按屏幕分配窗口。
     private func makeContexts(mode: OverlayMode, snapshot: CatalogSnapshot) -> [(NSScreen, OverlayContext)] {
         let mouseScreen = CoordinateConverter.screenWithMouse ?? NSScreen.main
@@ -154,14 +198,20 @@ final class OverlayController: OverlayContentDelegate {
                 assignment[ObjectIdentifier(screen), default: []].insert(window.id)
             }
         }
+        let tabsAvailable = mode == .expose && exposeBrowserPID != nil
+        let tabsState = browserTabsState(snapshot: snapshot)
         return screens.map { screen in
-            (screen, OverlayContext(
+            let isPrimary = screen == mouseScreen || screens.count == 1
+            return (screen, OverlayContext(
                 mode: mode,
                 snapshot: snapshot,
                 settings: settings,
                 windowIDs: assignment[ObjectIdentifier(screen)] ?? [],
                 exposePID: exposePID,
-                includeAppsWithoutWindows: screen == mouseScreen || screens.count == 1
+                includeAppsWithoutWindows: isPrimary,
+                browserTabsAvailable: tabsAvailable,
+                showsBrowserTabs: tabsAvailable && showsBrowserTabs,
+                browserTabs: isPrimary ? tabsState : nil
             ))
         }
     }
@@ -182,6 +232,7 @@ final class OverlayController: OverlayContentDelegate {
     private func switchMode(to mode: OverlayMode) {
         self.mode = mode
         state = .visible(mode)
+        refreshBrowserTabsIfNeeded()
         refreshContents()
     }
 
@@ -308,7 +359,66 @@ final class OverlayController: OverlayContentDelegate {
             next = 0
         }
         exposePID = candidates[next]
+        refreshBrowserTabsIfNeeded()
         refreshContents()
+    }
+
+    func overlayToggleBrowserTabs() {
+        guard exposeBrowserPID != nil else { return }
+        showsBrowserTabs.toggle()
+        refreshBrowserTabsIfNeeded()
+        refreshContents()
+    }
+
+    func overlayToggleBrowserTabGrouping() {
+        // 写入设置后 settingsDidChange 会刷新覆盖层。
+        settingsStore.update { $0.expose.tabGrouping = $0.expose.tabGrouping == .domain ? .window : .domain }
+    }
+
+    func overlayActivateTab(_ tab: BrowserTab, in window: BrowserWindowTabs, from content: OverlayContentView) {
+        guard let pid = exposeBrowserPID else { return }
+        // 先切换标签页再聚焦窗口，避免窗口先以旧标签页出现；找不到对应系统窗口时由脚本把窗口提到最前。
+        let systemWindow = window.windowID.flatMap { catalog.window($0) }
+        dismiss(focusing: nil)
+        browserTabs.activate(tab, in: window, pid: pid, raiseWindow: systemWindow == nil) { [weak self] ok in
+            guard let self else { return }
+            if let systemWindow {
+                self.catalog.perform(.focus(precise: self.settings.preciseFocus), on: systemWindow)
+            } else {
+                self.catalog.activateApp(pid)
+            }
+            if !ok { NSSound.beep() }
+            // 更新缓存，下次打开时当前标签页是对的。
+            self.browserTabs.refresh(pid: pid)
+        }
+    }
+
+    func overlayCloseTab(_ tab: BrowserTab, in window: BrowserWindowTabs, from content: OverlayContentView) {
+        guard let pid = exposeBrowserPID else { return }
+        browserTabs.close(tab, in: window, pid: pid) { [weak self, weak content] ok in
+            guard let self else { return }
+            if !ok {
+                content?.showToast(String(localized: "关闭标签页失败：浏览器未响应"))
+                self.refreshContents()
+            } else if self.settings.dismissAfterAction {
+                self.dismiss(focusing: nil)
+            }
+        }
+    }
+
+    func overlayBrowserTabsMessageAction() {
+        guard let pid = exposeBrowserPID else { return }
+        switch browserTabs.state(for: pid) {
+        case .needsPermission:
+            // 系统授权框会被覆盖层挡住：先收起。
+            dismiss(focusing: nil)
+            browserTabs.requestPermission(pid: pid)
+        case .denied:
+            dismiss(focusing: nil)
+            BrowserTabService.openAutomationSettings()
+        case .failed, .loading, .loaded:
+            browserTabs.refresh(pid: pid)
+        }
     }
 }
 

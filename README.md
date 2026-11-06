@@ -4,6 +4,7 @@
 
 - **三指上滑 → 牌堆**：按应用把窗口叠成一摞，后层卡片露出"标题 + 一截窗口内容"，悬停展开。
 - **三指下滑 → 当前应用窗口**：平铺当前应用的窗口，已收起的窗口放在底部条带，⇥ 切换应用。
+- **Chrome 标签页**：当前应用是 Chrome 时，三指下滑列出全部标签页（默认按域名分组，可改为按窗口），点击即切换，⌘W 关闭；T 在"窗口 / 标签页"之间切换，G 切换分组方式。设置 → 当前应用 → 浏览器标签页 可关闭此功能（通过 Apple Events 读取，需要"自动化"权限）。
 - 卡片上有红绿灯：关闭 / 收起（恢复）/ 全屏或缩放。
 - 标题字号、字重、行数、截断方式可调；自动去掉标题末尾的应用名，并弱化同一应用窗口标题的相同部分。
 - 可关闭缩略图，使用"仅标题"模式（不需要屏幕录制权限）。
@@ -32,7 +33,8 @@ open build/WindowDeck.app
 
 1. **辅助功能**（必需）：系统设置 → 隐私与安全性 → 辅助功能，打开 WindowDeck。
 2. **屏幕录制**（显示缩略图时需要）：授权后需要重新启动 WindowDeck。
-3. **关闭系统手势**：系统设置 → 触控板 → 更多手势，关闭"调度中心"和"App Exposé"（或改为四指）。WindowDeck 只检测并提示，不会修改系统设置。关闭后仍可用 ⌃↑ / ⌃↓ 打开系统自带的调度中心。
+3. **自动化**（显示 Chrome 标签页时需要）：第一次在 Chrome 中三指下滑时点"授权"，在系统弹窗中允许 WindowDeck 控制 Google Chrome；拒绝后可在 系统设置 → 隐私与安全性 → 自动化 中重新打开。
+4. **关闭系统手势**：系统设置 → 触控板 → 更多手势，关闭"调度中心"和"App Exposé"（或改为四指）。WindowDeck 只检测并提示，不会修改系统设置。关闭后仍可用 ⌃↑ / ⌃↓ 打开系统自带的调度中心。
 
 ## 操作
 
@@ -43,6 +45,9 @@ open build/WindowDeck.app
 | 方向键 | 移动选中 |
 | ⌘W / ⌘M | 关闭 / 收起选中的窗口 |
 | ⇥ / ⇧⇥ | （当前应用视图）切换应用 |
+| T | （当前应用是 Chrome）在窗口 / 标签页之间切换 |
+| G | （标签页视图）按域名 / 按窗口分组 |
+| ⌘W | （标签页视图）关闭选中的标签页 |
 | Esc、点击空白 | 收起 |
 
 ## 测试与调试
@@ -52,6 +57,7 @@ open build/WindowDeck.app
 swift build --build-system native                      # 编译 App（debug）
 .build/debug/WindowDeck --self-test                     # 打印私有能力、权限、窗口目录统计
 .build/debug/WindowDeck --render-preview /tmp/preview   # 用合成数据离屏渲染覆盖层到 PNG
+open -n build/WindowDeck.app --stdout /tmp/tabs.txt --args --browser-tabs --ask   # 读取 Chrome 窗口 / 标签页数量与耗时（以 WindowDeck 身份申请自动化权限）
 ```
 
 本地化：源码中的文案即简体中文（作为 key），英文翻译在 `Support/Resources/en.lproj/Localizable.strings`，构建脚本会把 `Support/Resources/` 复制进 App。新增或修改界面文案时需同步更新英文翻译；直接运行 `.build/debug/WindowDeck`（不在 .app 中）时始终显示中文。`--render-preview` 会同时输出深色与浅色（`-light` 后缀）两套预览。
@@ -65,3 +71,4 @@ swift build --build-system native                      # 编译 App（debug）
 - 依赖私有 API（MultitouchSupport、SkyLight、远程 AX 令牌），系统升级后可能失效；失效时自动降级（手势不可用时请改用快捷键）。
 - 不能上架 Mac App Store。
 - 已最小化的窗口无法截取实时画面，使用最小化前的缓存或应用图标。
+- 标签页视图只支持 Google Chrome（含 Beta / Dev / Canary）；后台标签页没有缩略图，只显示标题与域名。

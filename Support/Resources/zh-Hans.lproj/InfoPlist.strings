@@ -1,0 +1,2 @@
+/* 简体中文：Info.plist 中面向用户的文案。 */
+"NSAppleEventsUsageDescription" = "WindowDeck 需要读取 Google Chrome 的标签页，以便在“当前应用”视图中查看和切换标签页。";
